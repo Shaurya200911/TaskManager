@@ -1,0 +1,43 @@
+.add-task-btn {
+    margin-top: 30px;
+}
+
+.task-item {
+    border: 1px solid #ccc;
+    margin-bottom: 5px;
+    padding: 10px;
+    border-radius: 5px;
+    background-color: #f8f8f8;
+    position: relative;
+}
+
+.priority-low {
+    background-color: #e6ffe6;
+    border-left: 5px solid green;
+}
+
+.priority-medium {
+    background-color: #fff0e6;
+    border-left: 5px solid orange;
+}
+
+.priority-high {
+    background-color: #ffe6e6;
+    border-left: 5px solid red;
+}
+
+.completed {
+    text-decoration: line-through;
+    color: #777;
+    background-color: #e0e0e0;
+}
+
+.delete{
+    position: relative;
+    left: 452px;
+}
+.delete-task {
+    position: sticky;
+    background-color: #777777;
+    left: 5000px;
+}
