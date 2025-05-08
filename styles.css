@@ -41,3 +41,8 @@
     background-color: #777777;
     left: 5000px;
 }
+
+.logout{
+   position: absolute;
+   left: 1250px;
+}

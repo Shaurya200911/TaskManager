@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="author" content="Task Manager for people without time">
   <title>Task Manager</title>
   <link rel="stylesheet" href="styles.css" />
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-SgOJa3DmI69IUzQ2PVdRZhwQ+dy64/BUtbMJw1MZ8t5HZApcHrRKUc4W0kG879m7" crossorigin="anonymous">
@@ -12,6 +13,7 @@
 <div class="container mt-4">
   <div class="title-section mb-6">
     <center>
+      <a class="btn btn-danger logout" href="{{ url_for('logout') }}">Logout</a>
       <h1 class="display-1"><b>Task Manager</b></h1>
       <figure class="mt-2">
         <blockquote class="blockquote">
@@ -43,7 +45,7 @@
         </select>
       </div>
       <div class="col-md-2">
-        <button id="add-task-btn" class="btn btn-primary add-task-btn">Add Task</button>
+        <button id="add-task-btn" class="btn btn-primary add-task-btn">Add Task</button><br><br>
       </div>
     </div>
   </section>

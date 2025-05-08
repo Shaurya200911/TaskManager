@@ -34,7 +34,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const dueDate = dueDateInput.value;
     const priority = prioritySelect.value;
 
-    if (taskName.trim() !== "") {
+    if (taskName.trim() !== "" && dueDate.trim()!== "") {
       const newTask = {
         id: Date.now(),
         name: taskName,
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dueDateInput.value = "";
       prioritySelect.value = "low";
     } else {
-      alert("Task name cannot be empty!");
+      alert("Fill all fields to add a task! :)");
     }
   });
 
@@ -94,8 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
           listItem.remove()
        });
 
-      listItem.innerHTML += `\tTask name : ${task.name}\n
-                                Priority  : ${task.priority}\n
+      listItem.innerHTML += `\tTask name : ${task.name} |\n
+                                Priority  : ${task.priority} |\n
                                 Due date  : ${task.dueDate}`;
       listItem.appendChild(deleteTask);
       tasksList.appendChild(listItem);
