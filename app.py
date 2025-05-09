@@ -1,5 +1,6 @@
 from flask import Flask, request, jsonify, redirect, url_for, render_template, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
@@ -21,7 +22,6 @@ class Task(db.Model):
     title = db.Column(db.String(100), nullable=False)
     duedate = db.Column(db.Date, nullable=False)
     priority = db.Column(db.String, nullable=False)
-
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
     def __repr__(self):
@@ -56,25 +56,76 @@ def login():
     else:
         return render_template('login.html')
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET'])
 def tasks():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    return render_template('index.html')
 
-    else:
-        if request.method == 'POST':
-            title = request.form.get('title')
-            duedate = request.form.get('duedate')
-            priority = request.form.get('priority')
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    tasks = Task.query.filter_by(user_id=session['user_id']).all()
+    return jsonify([
+        {
+            'id': task.id,
+            'name': task.title,
+            'dueDate': task.duedate.strftime('%Y-%m-%d'),
+            'priority': task.priority,
+            'completed': False
+        } for task in tasks
+    ])
 
-            task = Task(title=title, duedate=duedate, priority=priority, user_id=1)
-            db.session.add(task)
-            db.session.commit()
+@app.route('/api/tasks', methods=['POST'])
+def create_task():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
 
-            return redirect(url_for('tasks'))
-        else:
-            tasks = Task.query.all()
-            return render_template('index.html', tasks=tasks)
+    data = request.json
+    new_task = Task(
+        title=data['name'],
+        duedate=datetime.strptime(data['dueDate'], '%Y-%m-%d').date(),
+        priority=data['priority'],
+        user_id=session['user_id']
+    )
+    db.session.add(new_task)
+    db.session.commit()
+    return jsonify({'message': 'Task added', 'id': new_task.id})
+
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    task = Task.query.filter_by(id=task_id, user_id=session['user_id']).first()
+    if not task:
+        return jsonify({'error': 'Task not found'}), 404
+
+    db.session.delete(task)
+    db.session.commit()
+    return jsonify({'message': 'Task deleted'})
+
+@app.route('/api/search')
+def search_tasks():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    keyword = request.args.get('q', '').lower()
+    tasks = Task.query.filter(
+        Task.user_id == session['user_id'],
+        Task.title.ilike(f'%{keyword}%')
+    ).all()
+
+    return jsonify([
+        {
+            'id': task.id,
+            'name': task.title,
+            'dueDate': task.duedate.strftime('%Y-%m-%d'),
+            'priority': task.priority,
+            'completed': False
+        } for task in tasks
+    ])
 
 @app.route('/logout')
 def logout():
@@ -92,6 +143,4 @@ def script():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-    app.run(debug=True)
-
-
+    app.run(host="0.0.0.0", debug=True)

@@ -5,50 +5,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const dueDateInput = document.getElementById('due-date');
   const prioritySelect = document.getElementById('priority');
   const tasksList = document.getElementById('tasks');
+  const searchButton = document.getElementById('search-btn');
+  const resetButton = document.getElementById('reset-btn');
+  const searchInput = document.getElementById('search-input');
 
-  function loadTasks() {
-    const storedTasks = localStorage.getItem('tasks');
-
-    return storedTasks ? JSON.parse(storedTasks) : [];
+  async function loadTasks() {
+    const response = await fetch('/api/tasks');
+    const tasks = await response.json();
+    renderTasks(tasks);
   }
 
-  function saveTasks() {
-    localStorage.setItem('tasks', JSON.stringify(tasks));
+  async function addTask(task) {
+    await fetch('/api/tasks', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(task)
+    });
+    loadTasks();
   }
 
-  let tasks = loadTasks();
-  renderTasks(tasks);
+  async function deleteTask(id) {
+    await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
+    loadTasks();
+  }
 
-  // function deleteTask(taskList) {
-  //   localStorage.removeItem('tasks');}
-  //   tasksList.innerHTML = '';
-  // });
-  //
-     deleteTaskButton.addEventListener('click', () => {
-       localStorage.removeItem('tasks');
-      tasksList.innerHTML = '';
-     })
-
-  addTaskButton.addEventListener('click', function() {
+  addTaskButton.addEventListener('click', function () {
     const taskName = taskNameInput.value;
     const dueDate = dueDateInput.value;
     const priority = prioritySelect.value;
 
-    if (taskName.trim() !== "" && dueDate.trim()!== "") {
+    if (taskName.trim() && dueDate.trim()) {
       const newTask = {
-        id: Date.now(),
         name: taskName,
         dueDate: dueDate,
-        priority: priority,
-        completed: false
+        priority: priority
       };
-
-      tasks.push(newTask);
-
-      saveTasks();
-
-      renderTasks(tasks);
-
+      addTask(newTask);
       taskNameInput.value = "";
       dueDateInput.value = "";
       prioritySelect.value = "low";
@@ -57,48 +49,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  deleteTaskButton.addEventListener('click', async () => {
+    const response = await fetch('/api/tasks');
+    const tasks = await response.json();
+    for (let task of tasks) {
+      await deleteTask(task.id);
+    }
+  });
+
+  searchButton.addEventListener('click', async () => {
+    const query = searchInput.value.trim();
+    if (!query) {
+      loadTasks();
+      return;
+    }
+    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+    const tasks = await response.json();
+    renderTasks(tasks);
+  });
+
+  resetButton.addEventListener('click', () => {
+    searchInput.value = '';
+    loadTasks();
+  });
+
   function renderTasks(taskList) {
-    const tasksList = document.getElementById('tasks');
     tasksList.innerHTML = '';
     taskList.forEach(task => {
       const listItem = document.createElement('li');
-      const deleteTask = document.createElement('button');
-
-      listItem.classList.add('task-item');
+      listItem.classList.add('task-item', `priority-${task.priority}`);
       listItem.dataset.taskId = task.id;
+      if (task.completed) listItem.classList.add('completed');
 
-      deleteTask.dataset.id = task.id;
-      deleteTask.innerHTML += "Delete task";
-      deleteTask.classList.add("btn");
-      deleteTask.classList.add("btn-danger");
-      deleteTask.classList.add("delete-task");
+      listItem.innerHTML = `
+        Task name : ${task.name} | Priority : ${task.priority} | Due date : ${task.dueDate}
+      `;
 
-      listItem.classList.add(`priority-${task.priority}`);
+      const deleteButton = document.createElement('button');
+      deleteButton.textContent = 'Delete task';
+      deleteButton.className = 'btn btn-danger delete-task';
+      deleteButton.onclick = (e) => {
+        e.stopPropagation();
+        deleteTask(task.id);
+      };
 
-      if (task.completed) {
-        listItem.classList.add('completed');
-      }
-
-      listItem.addEventListener('click', function() {
-        listItem.classList.add('completed');
-        task['completed'] = true
-        saveTasks();
-        //alert("Task completed successfully");
-
-      });
-
-       deleteTask.addEventListener('click', function() {
-         event.stopPropagation();
-          tasks.pop(task);
-          saveTasks();
-          listItem.remove()
-       });
-
-      listItem.innerHTML += `\tTask name : ${task.name} |\n
-                                Priority  : ${task.priority} |\n
-                                Due date  : ${task.dueDate}`;
-      listItem.appendChild(deleteTask);
+      listItem.appendChild(deleteButton);
       tasksList.appendChild(listItem);
     });
   }
-})
+
+  loadTasks();
+});

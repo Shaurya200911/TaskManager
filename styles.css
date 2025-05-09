@@ -43,6 +43,6 @@
 }
 
 .logout{
-   position: absolute;
-   left: 1250px;
+   position: sticky;
+   left: 5000px;
 }
