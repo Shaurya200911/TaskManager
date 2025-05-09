@@ -33,8 +33,8 @@
 }
 
 .delete{
-    position: relative;
-    left: 452px;
+    position: sticky;
+    left: 5000px;
 }
 .delete-task {
     position: sticky;
@@ -45,4 +45,15 @@
 .logout{
    position: sticky;
    left: 5000px;
+   bottom: 100px;
+}
+
+.reset-btn{
+    position: sticky;
+    left: 5000px;
+    }
+
+.search-btn{
+    position: sticky;
+    left: 5000px;
 }
