@@ -27,10 +27,11 @@
 }
 
 .completed {
-    text-decoration: line-through;
-    color: #777;
-    background-color: #e0e0e0;
+  text-decoration: line-through;
+  color: gray;
+  background-color: #f0f0f0;
 }
+
 
 .delete{
     position: sticky;

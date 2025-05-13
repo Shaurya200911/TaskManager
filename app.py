@@ -1,12 +1,22 @@
 from flask import Flask, request, jsonify, redirect, url_for, render_template, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
+from flask_mail import Mail, Message
 from datetime import datetime
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# ✏️ FILL THIS SECTION WITH YOUR MAIL CREDENTIALS
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 587
+app.config['MAIL_USE_TLS'] = True
+app.config['MAIL_USERNAME'] = 'skc112009@gmail.com'       # <-- replace with your Gmail
+app.config['MAIL_PASSWORD'] = 'qefl ranj fhsy mudo'     # <-- replace with App Password
+
 db = SQLAlchemy(app)
+mail = Mail(app)
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -14,18 +24,15 @@ class User(db.Model):
     email = db.Column(db.String(100), unique=True, nullable=False)
     password = db.Column(db.String(100), nullable=False)
 
-    def __repr__(self):
-        return f'<User {self.id}>'
-
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(100), nullable=False)
     duedate = db.Column(db.Date, nullable=False)
     priority = db.Column(db.String, nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    recurring = db.Column(db.Boolean, default=False)  # ✅ new field
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
-    def __repr__(self):
-        return f'<Task {self.id}>'
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -33,14 +40,11 @@ def register():
         name = request.form.get('username')
         email = request.form.get('email')
         password = request.form.get('password')
-
         user = User(name=name, email=email, password=password)
         db.session.add(user)
         db.session.commit()
-
         return redirect(url_for('login'))
-    else:
-        return render_template('register.html')
+    return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -53,58 +57,13 @@ def login():
             return redirect(url_for('tasks'))
         else:
             return 'Invalid credentials. Please try again.'
-    else:
-        return render_template('login.html')
+    return render_template('login.html')
 
-@app.route('/', methods=['GET'])
+@app.route('/')
 def tasks():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     return render_template('index.html')
-
-@app.route('/api/tasks', methods=['GET'])
-def get_tasks():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    tasks = Task.query.filter_by(user_id=session['user_id']).all()
-    return jsonify([
-        {
-            'id': task.id,
-            'name': task.title,
-            'dueDate': task.duedate.strftime('%Y-%m-%d'),
-            'priority': task.priority,
-            'completed': False
-        } for task in tasks
-    ])
-
-@app.route('/api/tasks', methods=['POST'])
-def create_task():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    data = request.json
-    new_task = Task(
-        title=data['name'],
-        duedate=datetime.strptime(data['dueDate'], '%Y-%m-%d').date(),
-        priority=data['priority'],
-        user_id=session['user_id']
-    )
-    db.session.add(new_task)
-    db.session.commit()
-    return jsonify({'message': 'Task added', 'id': new_task.id})
-
-@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
-def delete_task(task_id):
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-
-    task = Task.query.filter_by(id=task_id, user_id=session['user_id']).first()
-    if not task:
-        return jsonify({'error': 'Task not found'}), 404
-
-    db.session.delete(task)
-    db.session.commit()
-    return jsonify({'message': 'Task deleted'})
 
 @app.route('/api/search')
 def search_tasks():
@@ -123,9 +82,93 @@ def search_tasks():
             'name': task.title,
             'dueDate': task.duedate.strftime('%Y-%m-%d'),
             'priority': task.priority,
-            'completed': False
+            'completed': task.completed
         } for task in tasks
     ])
+
+
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    tasks = Task.query.filter_by(user_id=session['user_id']).all()
+    return jsonify([{
+        'id': task.id,
+        'name': task.title,
+        'dueDate': task.duedate.strftime('%Y-%m-%d'),
+        'priority': task.priority,
+        'completed': task.completed
+    } for task in tasks])
+
+@app.route('/api/tasks', methods=['POST'])
+def create_task():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.json
+    task = Task(
+        title=data['name'],
+        duedate=datetime.strptime(data['dueDate'], '%Y-%m-%d').date(),
+        priority=data['priority'],
+        recurring=data.get('recurring', False),
+        user_id=session['user_id']
+    )
+
+    db.session.add(task)
+    db.session.commit()
+    return jsonify({'message': 'Task added', 'id': task.id})
+
+@app.route('/api/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    task = Task.query.filter_by(id=task_id, user_id=session['user_id']).first()
+    if task:
+        db.session.delete(task)
+        db.session.commit()
+        return jsonify({'message': 'Task deleted'})
+    return jsonify({'error': 'Not found'}), 404
+
+@app.route('/api/tasks/<int:task_id>/toggle', methods=['PATCH'])
+def toggle_task_completion(task_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    task = Task.query.filter_by(id=task_id, user_id=session['user_id']).first()
+    if task:
+        task.completed = not task.completed
+        db.session.commit()
+        return jsonify({'message': 'Toggled'})
+    return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/send-email')
+def send_email():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    user = User.query.get(session['user_id'])
+    tasks = Task.query.filter_by(user_id=user.id).all()
+
+    current = [t for t in tasks if not t.completed]
+    completed = [t for t in tasks if t.completed]
+
+    body = f"""Hello {user.name},
+
+Here is your task summary:
+
+📌 Pending Tasks:
+{chr(10).join(f"- {t.title} (Due: {t.duedate})" for t in current)}
+
+✅ Completed Tasks:
+{chr(10).join(f"- {t.title}" for t in completed)}
+
+Regards,
+Your Task Manager
+"""
+
+    msg = Message("Your Task Summary", sender=app.config['MAIL_USERNAME'], recipients=[user.email])
+    msg.body = body
+    mail.send(msg)
+
+    return redirect(url_for('tasks'))
 
 @app.route('/logout')
 def logout():

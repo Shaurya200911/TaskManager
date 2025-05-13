@@ -1,18 +1,18 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const addTaskButton = document.getElementById('add-task-btn');
-  const deleteTaskButton = document.getElementById('deleteall');
-  const taskNameInput = document.getElementById('task-name');
-  const dueDateInput = document.getElementById('due-date');
+  const addBtn = document.getElementById('add-task-btn');
+  const deleteAll = document.getElementById('deleteall');
+  const nameInput = document.getElementById('task-name');
+  const dateInput = document.getElementById('due-date');
   const prioritySelect = document.getElementById('priority');
   const tasksList = document.getElementById('tasks');
-  const searchButton = document.getElementById('search-btn');
-  const resetButton = document.getElementById('reset-btn');
+  const searchBtn = document.getElementById('search-btn');
+  const resetBtn = document.getElementById('reset-btn');
   const searchInput = document.getElementById('search-input');
 
   async function loadTasks() {
-    const response = await fetch('/api/tasks');
-    const tasks = await response.json();
-    renderTasks(tasks);
+    const res = await fetch('/api/tasks');
+    const tasks = await res.json();
+    render(tasks);
   }
 
   async function addTask(task) {
@@ -29,74 +29,95 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTasks();
   }
 
-  addTaskButton.addEventListener('click', function () {
-    const taskName = taskNameInput.value;
-    const dueDate = dueDateInput.value;
+  async function toggleTask(id) {
+    await fetch(`/api/tasks/${id}/toggle`, { method: 'PATCH' });
+    loadTasks();
+  }
+
+ function render(tasks) {
+  tasksList.innerHTML = '';
+  tasks.forEach(task => {
+    const li = document.createElement('li');
+    li.className = `list-group-item d-flex justify-content-between align-items-center priority-${task.priority}`;
+    li.textContent = `📌 ${task.name} — Due: ${task.dueDate} — Priority: ${task.priority}`;
+    li.style.cursor = 'pointer';
+
+    // ✅ Add strike-through class if completed
+    if (task.completed) {
+      li.classList.add('completed');
+    }
+
+    // ✅ Toggle complete on click
+    li.addEventListener('click', () => {
+      fetch(`/api/tasks/${task.id}/toggle`, { method: 'PATCH' }).then(loadTasks);
+    });
+
+    // ❌ Delete button (stopPropagation to prevent toggle)
+    const btn = document.createElement('button');
+    btn.textContent = '❌';
+    btn.className = 'btn btn-sm btn-danger';
+    btn.onclick = (e) => {
+      e.stopPropagation(); // ⛔ don’t trigger toggle
+      deleteTask(task.id);
+    };
+
+    li.appendChild(btn);
+    tasksList.appendChild(li);
+  });
+}
+
+
+
+  addBtn.onclick = () => {
+    const name = nameInput.value.trim();
+    const date = dateInput.value;
     const priority = prioritySelect.value;
+    if (!name || !date) return alert('Fill all fields!');
+    addTask({ name, dueDate: date, priority });
+    nameInput.value = '';
+    dateInput.value = '';
+    prioritySelect.value = 'low';
+  };
 
-    if (taskName.trim() && dueDate.trim()) {
-      const newTask = {
-        name: taskName,
-        dueDate: dueDate,
-        priority: priority
-      };
-      addTask(newTask);
-      taskNameInput.value = "";
-      dueDateInput.value = "";
-      prioritySelect.value = "low";
-    } else {
-      alert("Fill all fields to add a task! :)");
-    }
-  });
+  searchBtn.onclick = async () => {
+    const q = searchInput.value.trim();
+    if (!q) return loadTasks();
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+    const tasks = await res.json();
+    render(tasks);
+  };
 
-  deleteTaskButton.addEventListener('click', async () => {
-    const response = await fetch('/api/tasks');
-    const tasks = await response.json();
-    for (let task of tasks) {
-      await deleteTask(task.id);
-    }
-  });
-
-  searchButton.addEventListener('click', async () => {
-    const query = searchInput.value.trim();
-    if (!query) {
-      loadTasks();
-      return;
-    }
-    const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-    const tasks = await response.json();
-    renderTasks(tasks);
-  });
-
-  resetButton.addEventListener('click', () => {
+  resetBtn.onclick = () => {
     searchInput.value = '';
     loadTasks();
-  });
-
-  function renderTasks(taskList) {
-    tasksList.innerHTML = '';
-    taskList.forEach(task => {
-      const listItem = document.createElement('li');
-      listItem.classList.add('task-item', `priority-${task.priority}`);
-      listItem.dataset.taskId = task.id;
-      if (task.completed) listItem.classList.add('completed');
-
-      listItem.innerHTML = `
-        Task name : ${task.name} | Priority : ${task.priority} | Due date : ${task.dueDate}
-      `;
-
-      const deleteButton = document.createElement('button');
-      deleteButton.textContent = 'Delete task';
-      deleteButton.className = 'btn btn-danger delete-task';
-      deleteButton.onclick = (e) => {
-        e.stopPropagation();
-        deleteTask(task.id);
-      };
-
-      listItem.appendChild(deleteButton);
-      tasksList.appendChild(listItem);
-    });
-  }
+  };
 
   loadTasks();
 });
+
+searchBtn.onclick = async () => {
+  const q = searchInput.value.trim();
+  if (!q) return loadTasks();
+
+  const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
+  const tasks = await res.json();
+  render(tasks);
+};
+
+const recurringCheckbox = document.getElementById('recurring-task');
+
+addBtn.onclick = () => {
+  const name = nameInput.value.trim();
+  const date = dateInput.value;
+  const priority = prioritySelect.value;
+  const recurring = recurringCheckbox.checked;
+
+  if (!name || !date) return alert('Fill all fields!');
+  addTask({ name, dueDate: date, priority, recurring });
+
+  // Reset form
+  nameInput.value = '';
+  dateInput.value = '';
+  prioritySelect.value = 'low';
+  recurringCheckbox.checked = false;
+};
