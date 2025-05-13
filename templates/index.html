@@ -15,6 +15,7 @@
     <a class="navbar-brand fw-bold" href="#">Task Manager</a>
     <div>
       <a class="navbar-brand" href="#task_section">Tasks</a>
+      <a class="navbar-brand" href="#calendar_section">Calendar</a>
       <a class="btn btn-warning me-2" href="/send-email">📧 Email Tasks</a>
       <a class="btn btn-danger" href="{{ url_for('logout') }}">Logout</a>
     </div>
@@ -87,10 +88,23 @@
   </div>
 
   <!-- Task List -->
-  <div class="card shadow-sm">
+  <div class="card shadow-sm mb-4" id="task_section">
     <div class="card-body">
-      <h5 class="fw-bold mb-3" id="task_section">Your Tasks</h5>
+      <h5 class="fw-bold mb-3">Your Tasks</h5>
       <ul id="tasks" class="list-group list-group-flush"></ul>
+    </div>
+  </div>
+
+  <!-- Calendar View -->
+  <div class="card shadow-sm" id="calendar_section">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3">Calendar</h5>
+      <div class="d-flex justify-content-between align-items-center mb-2">
+        <button id="prev-month" class="btn btn-outline-primary btn-sm">⬅️ Prev</button>
+        <h6 id="calendar-month" class="mb-0"></h6>
+        <button id="next-month" class="btn btn-outline-primary btn-sm">Next ➡️</button>
+      </div>
+      <div id="calendar" class="calendar-grid"></div>
     </div>
   </div>
 

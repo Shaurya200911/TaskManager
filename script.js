@@ -10,10 +10,14 @@ document.addEventListener('DOMContentLoaded', () => {
   const resetBtn = document.getElementById('reset-btn');
   const searchInput = document.getElementById('search-input');
 
+  let currentMonth = new Date().getMonth();
+  let currentYear = new Date().getFullYear();
+
   async function loadTasks() {
     const res = await fetch('/api/tasks');
     const tasks = await res.json();
     render(tasks);
+    renderCalendar(tasks);
   }
 
   async function addTask(task) {
@@ -35,35 +39,175 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTasks();
   }
 
-  function render(tasks) {
-    tasksList.innerHTML = '';
-    tasks.forEach(task => {
-      const li = document.createElement('li');
-      li.className = `list-group-item d-flex justify-content-between align-items-center priority-${task.priority}`;
-      li.style.cursor = 'pointer';
+function render(tasks) {
+  tasksList.innerHTML = '';
 
-      li.textContent = `${task.completed ? '✅' : '📌'} ${task.name} [${task.label}] — Due: ${task.dueDate} — Priority: ${task.priority}`;
+  if (tasks.length === 0) {
+    tasksList.innerHTML = '<p class="text-center text-muted">No tasks found.</p>';
+    return;
+  }
 
-      if (task.completed) {
-        li.classList.add('completed');
-      }
+  // Sort tasks: Due date ascending first, then by Priority
+  tasks.sort((a, b) => {
+    if (a.dueDate === b.dueDate) {
+      const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
+      return priorityOrder[a.priority] - priorityOrder[b.priority];
+    }
+    return new Date(a.dueDate) - new Date(b.dueDate);
+  });
 
-      li.addEventListener('click', () => {
-        toggleTask(task.id);
+  // Get today's and tomorrow's dates
+  const today = new Date();
+  const todayStr = today.toISOString().split('T')[0];
+
+  const tomorrow = new Date();
+  tomorrow.setDate(today.getDate() + 1);
+  const tomorrowStr = tomorrow.toISOString().split('T')[0];
+
+  let lastGroup = '';
+
+  tasks.forEach(task => {
+    const taskDate = task.dueDate;
+
+    let groupTitle = '';
+    if (taskDate < todayStr) {
+      groupTitle = '⚠️ Overdue';
+    } else if (taskDate === todayStr) {
+      groupTitle = '📅 Today';
+    } else if (taskDate === tomorrowStr) {
+      groupTitle = '📅 Tomorrow';
+    } else {
+      groupTitle = `🗓️ ${taskDate}`;
+    }
+
+    if (groupTitle !== lastGroup) {
+      const header = document.createElement('li');
+      header.className = `list-group-item fw-bold ${groupTitle === '⚠️ Overdue' ? 'bg-danger text-white' : 'bg-light'}`;
+      header.textContent = groupTitle;
+      tasksList.appendChild(header);
+      lastGroup = groupTitle;
+    }
+
+    const li = document.createElement('li');
+    li.className = `list-group-item d-flex justify-content-between align-items-center priority-${task.priority}`;
+    li.style.cursor = 'pointer';
+
+    // Priority Badges 🎯
+    let badgeClass = '';
+    if (task.priority === 'high') badgeClass = 'badge bg-danger';
+    else if (task.priority === 'medium') badgeClass = 'badge bg-warning text-dark';
+    else badgeClass = 'badge bg-primary';
+
+    li.innerHTML = `
+      <div>
+        ${task.completed ? '✅' : '📌'} ${task.name}
+        <span class="${badgeClass} ms-2">${task.priority.toUpperCase()}</span>
+        <small class="text-muted">[${task.label}]</small>
+      </div>
+    `;
+
+    if (task.completed) {
+      li.classList.add('completed');
+    }
+
+    li.addEventListener('click', () => {
+      toggleTask(task.id);
+    });
+
+    const btn = document.createElement('button');
+    btn.textContent = '❌';
+    btn.className = 'btn btn-sm btn-danger';
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      deleteTask(task.id);
+    };
+
+    li.appendChild(btn);
+    tasksList.appendChild(li);
+  });
+}
+
+  function renderCalendar(tasks) {
+    const calendar = document.getElementById('calendar');
+    calendar.innerHTML = '';
+
+    const monthYear = new Date(currentYear, currentMonth, 1);
+    const firstDay = new Date(currentYear, currentMonth, 1);
+    const lastDay = new Date(currentYear, currentMonth + 1, 0);
+
+    const totalDays = lastDay.getDate();
+    const startingDay = firstDay.getDay(); // Sunday = 0
+
+    document.getElementById('calendar-month').textContent = monthYear.toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    // Empty cells for starting day
+    for (let i = 0; i < startingDay; i++) {
+      const empty = document.createElement('div');
+      calendar.appendChild(empty);
+    }
+
+    for (let day = 1; day <= totalDays; day++) {
+      const cell = document.createElement('div');
+      cell.className = 'calendar-day';
+      const dateStr = new Date(currentYear, currentMonth, day).toISOString().split('T')[0];
+
+      cell.innerHTML = `<h6>${day}</h6>`;
+
+      tasks.forEach(task => {
+        if (task.dueDate === dateStr) {
+          const taskDiv = document.createElement('div');
+          taskDiv.textContent = `${task.name}`;
+
+          // Color based on priority
+          if (task.priority === 'high') {
+            taskDiv.style.backgroundColor = '#f8d7da';
+            taskDiv.style.color = '#721c24';
+          } else if (task.priority === 'medium') {
+            taskDiv.style.backgroundColor = '#fff3cd';
+            taskDiv.style.color = '#856404';
+          } else {
+            taskDiv.style.backgroundColor = '#d1ecf1';
+            taskDiv.style.color = '#0c5460';
+          }
+
+          taskDiv.style.padding = '2px 5px';
+          taskDiv.style.marginTop = '5px';
+          taskDiv.style.borderRadius = '5px';
+          taskDiv.style.fontSize = '12px';
+
+          cell.appendChild(taskDiv);
+        }
       });
 
-      const btn = document.createElement('button');
-      btn.textContent = '❌';
-      btn.className = 'btn btn-sm btn-danger';
-      btn.onclick = (e) => {
-        e.stopPropagation();
-        deleteTask(task.id);
-      };
-
-      li.appendChild(btn);
-      tasksList.appendChild(li);
-    });
+      calendar.appendChild(cell);
+    }
   }
+
+  function showCalendar() {
+    fetch('/api/tasks')
+      .then(res => res.json())
+      .then(tasks => {
+        renderCalendar(tasks);
+      });
+  }
+
+  document.getElementById('prev-month').addEventListener('click', () => {
+    currentMonth--;
+    if (currentMonth < 0) {
+      currentMonth = 11;
+      currentYear--;
+    }
+    loadTasks();
+  });
+
+  document.getElementById('next-month').addEventListener('click', () => {
+    currentMonth++;
+    if (currentMonth > 11) {
+      currentMonth = 0;
+      currentYear++;
+    }
+    loadTasks();
+  });
 
   addBtn.onclick = () => {
     const name = nameInput.value.trim();
@@ -88,6 +232,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     const tasks = await res.json();
     render(tasks);
+    renderCalendar(tasks);
   };
 
   resetBtn.onclick = () => {
@@ -96,4 +241,6 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   loadTasks();
+
+  document.querySelector('a[href="#calendar_section"]').addEventListener('click', showCalendar);
 });
