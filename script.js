@@ -1,9 +1,10 @@
 document.addEventListener('DOMContentLoaded', () => {
   const addBtn = document.getElementById('add-task-btn');
-  const deleteAll = document.getElementById('deleteall');
   const nameInput = document.getElementById('task-name');
   const dateInput = document.getElementById('due-date');
   const prioritySelect = document.getElementById('priority');
+  const recurringCheckbox = document.getElementById('recurring-task');
+  const labelInput = document.getElementById('label');
   const tasksList = document.getElementById('tasks');
   const searchBtn = document.getElementById('search-btn');
   const resetBtn = document.getElementById('reset-btn');
@@ -34,49 +35,51 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTasks();
   }
 
- function render(tasks) {
-  tasksList.innerHTML = '';
-  tasks.forEach(task => {
-    const li = document.createElement('li');
-    li.className = `list-group-item d-flex justify-content-between align-items-center priority-${task.priority}`;
-    li.textContent = `📌 ${task.name} — Due: ${task.dueDate} — Priority: ${task.priority}`;
-    li.style.cursor = 'pointer';
+  function render(tasks) {
+    tasksList.innerHTML = '';
+    tasks.forEach(task => {
+      const li = document.createElement('li');
+      li.className = `list-group-item d-flex justify-content-between align-items-center priority-${task.priority}`;
+      li.style.cursor = 'pointer';
 
-    // ✅ Add strike-through class if completed
-    if (task.completed) {
-      li.classList.add('completed');
-    }
+      li.textContent = `${task.completed ? '✅' : '📌'} ${task.name} [${task.label}] — Due: ${task.dueDate} — Priority: ${task.priority}`;
 
-    // ✅ Toggle complete on click
-    li.addEventListener('click', () => {
-      fetch(`/api/tasks/${task.id}/toggle`, { method: 'PATCH' }).then(loadTasks);
+      if (task.completed) {
+        li.classList.add('completed');
+      }
+
+      li.addEventListener('click', () => {
+        toggleTask(task.id);
+      });
+
+      const btn = document.createElement('button');
+      btn.textContent = '❌';
+      btn.className = 'btn btn-sm btn-danger';
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        deleteTask(task.id);
+      };
+
+      li.appendChild(btn);
+      tasksList.appendChild(li);
     });
-
-    // ❌ Delete button (stopPropagation to prevent toggle)
-    const btn = document.createElement('button');
-    btn.textContent = '❌';
-    btn.className = 'btn btn-sm btn-danger';
-    btn.onclick = (e) => {
-      e.stopPropagation(); // ⛔ don’t trigger toggle
-      deleteTask(task.id);
-    };
-
-    li.appendChild(btn);
-    tasksList.appendChild(li);
-  });
-}
-
-
+  }
 
   addBtn.onclick = () => {
     const name = nameInput.value.trim();
     const date = dateInput.value;
     const priority = prioritySelect.value;
+    const label = labelInput.value.trim();
+    const recurring = recurringCheckbox.checked;
+
     if (!name || !date) return alert('Fill all fields!');
-    addTask({ name, dueDate: date, priority });
+    addTask({ name, dueDate: date, priority, label, recurring });
+
     nameInput.value = '';
     dateInput.value = '';
     prioritySelect.value = 'low';
+    labelInput.value = '';
+    recurringCheckbox.checked = false;
   };
 
   searchBtn.onclick = async () => {
@@ -94,30 +97,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
   loadTasks();
 });
-
-searchBtn.onclick = async () => {
-  const q = searchInput.value.trim();
-  if (!q) return loadTasks();
-
-  const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-  const tasks = await res.json();
-  render(tasks);
-};
-
-const recurringCheckbox = document.getElementById('recurring-task');
-
-addBtn.onclick = () => {
-  const name = nameInput.value.trim();
-  const date = dateInput.value;
-  const priority = prioritySelect.value;
-  const recurring = recurringCheckbox.checked;
-
-  if (!name || !date) return alert('Fill all fields!');
-  addTask({ name, dueDate: date, priority, recurring });
-
-  // Reset form
-  nameInput.value = '';
-  dateInput.value = '';
-  prioritySelect.value = 'low';
-  recurringCheckbox.checked = false;
-};

@@ -10,10 +10,11 @@
 <body>
 
 <!-- Navbar -->
-<nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
-  <div class="container-fluid">
-    <a class="navbar-brand" href="#">Task Manager</a>
-    <div class="d-flex">
+<nav class="navbar navbar-light bg-white shadow-sm mb-2">
+  <div class="container">
+    <a class="navbar-brand fw-bold" href="#">Task Manager</a>
+    <div>
+      <a class="navbar-brand" href="#task_section">Tasks</a>
       <a class="btn btn-warning me-2" href="/send-email">📧 Email Tasks</a>
       <a class="btn btn-danger" href="{{ url_for('logout') }}">Logout</a>
     </div>
@@ -21,55 +22,78 @@
 </nav>
 
 <div class="container">
-  <!-- Task Entry -->
-  <section class="mb-3">
-    <div class="row g-2 align-items-center">
-      <div class="col-md-4 col-12">
-        <label for="task-name" class="form-label">Task Name</label>
-        <input type="text" class="form-control" id="task-name" placeholder="Enter task name" required>
-      </div>
-      <div class="col-md-3 col-6">
-        <label for="due-date" class="form-label">Due Date</label>
-        <input type="date" class="form-control" id="due-date" required>
-      </div>
-      <div class="col-md-3 col-6">
-        <label for="priority" class="form-label">Priority</label>
-        <select class="form-select" id="priority">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-      </div>
-      <div class="form-check mt-4">
-        <input class="form-check-input" type="checkbox" id="recurring-task">
-        <label class="form-check-label" for="recurring-task">
-          Recurring Task
-        </label>
-      </div>
-      <div class="col-md-2 col-12 mt-4">
-        <button id="add-task-btn" class="btn btn-primary w-100">Add Task</button>
-      </div>
-    </div>
-  </section>
 
-  <!-- Search -->
-  <section class="mb-4">
-    <div class="row">
-      <div class="col-8">
-        <input type="text" id="search-input" class="form-control" placeholder="Search tasks">
-      </div>
-      <div class="col-2">
-        <button id="search-btn" class="btn btn-info w-100">Search</button>
-      </div>
-      <div class="col-2">
-        <button id="reset-btn" class="btn btn-secondary w-100">Reset</button>
+  <!-- Heading -->
+  <div class="text-center mb-4">
+    <h2 class="fw-bold">Organize your day</h2>
+    <p class="text-muted">Manage your tasks efficiently</p>
+  </div>
+
+  <!-- Task Entry Card -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <form id="task-form">
+        <div class="row g-3 align-items-center">
+          <div class="col-md-4">
+            <label for="task-name" class="form-label">Task Name</label>
+            <input type="text" class="form-control" id="task-name" placeholder="Enter task name" required>
+          </div>
+          <div class="col-md-3">
+            <label for="due-date" class="form-label">Due Date</label>
+            <input type="date" class="form-control" id="due-date" required>
+          </div>
+          <div class="col-md-2">
+            <label for="priority" class="form-label">Priority</label>
+            <select class="form-select" id="priority">
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="label" class="form-label">Label</label>
+            <input type="text" class="form-control" id="label" placeholder="e.g. Work, Personal">
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button id="add-task-btn" type="button" class="btn btn-primary w-100">Add Task</button>
+          </div>
+        </div>
+
+        <div class="form-check mt-3">
+          <input class="form-check-input" type="checkbox" id="recurring-task">
+          <label class="form-check-label" for="recurring-task">
+            Recurring Task
+          </label>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Search Bar Card -->
+  <div class="card mb-4 shadow-sm">
+    <div class="card-body">
+      <div class="row g-2">
+        <div class="col-md-8">
+          <input type="text" id="search-input" class="form-control" placeholder="Search tasks or labels">
+        </div>
+        <div class="col-md-2">
+          <button id="search-btn" class="btn btn-info w-100">Search</button>
+        </div>
+        <div class="col-md-2">
+          <button id="reset-btn" class="btn btn-secondary w-100">Reset</button>
+        </div>
       </div>
     </div>
-  </section>
+  </div>
 
   <!-- Task List -->
-  <h3 class="mb-3">Your Tasks</h3>
-  <ul id="tasks" class="list-group"></ul>
+  <div class="card shadow-sm">
+    <div class="card-body">
+      <h5 class="fw-bold mb-3" id="task_section">Your Tasks</h5>
+      <ul id="tasks" class="list-group list-group-flush"></ul>
+    </div>
+  </div>
+
 </div>
 
 <script src="script.js"></script>

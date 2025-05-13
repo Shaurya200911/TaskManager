@@ -12,8 +12,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'skc112009@gmail.com'       # <-- replace with your Gmail
-app.config['MAIL_PASSWORD'] = 'qefl ranj fhsy mudo'     # <-- replace with App Password
+app.config['MAIL_USERNAME'] = 'your_email@gmail.com'       # <-- your Gmail
+app.config['MAIL_PASSWORD'] = 'your_app_password_here'     # <-- your Gmail App Password
 
 db = SQLAlchemy(app)
 mail = Mail(app)
@@ -29,10 +29,10 @@ class Task(db.Model):
     title = db.Column(db.String(100), nullable=False)
     duedate = db.Column(db.Date, nullable=False)
     priority = db.Column(db.String, nullable=False)
+    label = db.Column(db.String(100), nullable=True)
     completed = db.Column(db.Boolean, default=False)
-    recurring = db.Column(db.Boolean, default=False)  # ✅ new field
+    recurring = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -65,40 +65,22 @@ def tasks():
         return redirect(url_for('login'))
     return render_template('index.html')
 
-@app.route('/api/search')
-def search_tasks():
+@app.route('/api/tasks', methods=['GET'])
+def get_tasks():
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-
-    keyword = request.args.get('q', '').lower()
-    tasks = Task.query.filter(
-        Task.user_id == session['user_id'],
-        Task.title.ilike(f'%{keyword}%')
-    ).all()
-
+    tasks = Task.query.filter_by(user_id=session['user_id']).all()
     return jsonify([
         {
             'id': task.id,
             'name': task.title,
             'dueDate': task.duedate.strftime('%Y-%m-%d'),
             'priority': task.priority,
-            'completed': task.completed
+            'completed': task.completed,
+            'recurring': task.recurring,
+            'label': task.label
         } for task in tasks
     ])
-
-
-@app.route('/api/tasks', methods=['GET'])
-def get_tasks():
-    if 'user_id' not in session:
-        return jsonify({'error': 'Unauthorized'}), 401
-    tasks = Task.query.filter_by(user_id=session['user_id']).all()
-    return jsonify([{
-        'id': task.id,
-        'name': task.title,
-        'dueDate': task.duedate.strftime('%Y-%m-%d'),
-        'priority': task.priority,
-        'completed': task.completed
-    } for task in tasks])
 
 @app.route('/api/tasks', methods=['POST'])
 def create_task():
@@ -109,10 +91,10 @@ def create_task():
         title=data['name'],
         duedate=datetime.strptime(data['dueDate'], '%Y-%m-%d').date(),
         priority=data['priority'],
+        label=data.get('label', ''),
         recurring=data.get('recurring', False),
         user_id=session['user_id']
     )
-
     db.session.add(task)
     db.session.commit()
     return jsonify({'message': 'Task added', 'id': task.id})
@@ -126,7 +108,7 @@ def delete_task(task_id):
         db.session.delete(task)
         db.session.commit()
         return jsonify({'message': 'Task deleted'})
-    return jsonify({'error': 'Not found'}), 404
+    return jsonify({'error': 'Task not found'}), 404
 
 @app.route('/api/tasks/<int:task_id>/toggle', methods=['PATCH'])
 def toggle_task_completion(task_id):
@@ -138,6 +120,29 @@ def toggle_task_completion(task_id):
         db.session.commit()
         return jsonify({'message': 'Toggled'})
     return jsonify({'error': 'Task not found'}), 404
+
+@app.route('/api/search')
+def search_tasks():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    keyword = request.args.get('q', '').lower()
+    tasks = Task.query.filter(
+        Task.user_id == session['user_id'],
+        (Task.title.ilike(f'%{keyword}%')) | (Task.label.ilike(f'%{keyword}%'))
+    ).all()
+
+    return jsonify([
+        {
+            'id': task.id,
+            'name': task.title,
+            'dueDate': task.duedate.strftime('%Y-%m-%d'),
+            'priority': task.priority,
+            'completed': task.completed,
+            'recurring': task.recurring,
+            'label': task.label
+        } for task in tasks
+    ])
 
 @app.route('/send-email')
 def send_email():
@@ -155,10 +160,10 @@ def send_email():
 Here is your task summary:
 
 📌 Pending Tasks:
-{chr(10).join(f"- {t.title} (Due: {t.duedate})" for t in current)}
+{chr(10).join(f"- {t.title} [{t.label}] (Due: {t.duedate})" for t in current)}
 
 ✅ Completed Tasks:
-{chr(10).join(f"- {t.title}" for t in completed)}
+{chr(10).join(f"- {t.title} [{t.label}]" for t in completed)}
 
 Regards,
 Your Task Manager
@@ -168,7 +173,7 @@ Your Task Manager
     msg.body = body
     mail.send(msg)
 
-    return redirect(url_for('tasks'))
+    return "Email sent!"
 
 @app.route('/logout')
 def logout():
@@ -185,5 +190,6 @@ def script():
 
 if __name__ == '__main__':
     with app.app_context():
+        db.drop_all()
         db.create_all()
     app.run(host="0.0.0.0", debug=True)
