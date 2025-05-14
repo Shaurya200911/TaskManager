@@ -56,7 +56,7 @@ def login():
             session['user_id'] = user.id
             return redirect(url_for('tasks'))
         else:
-            return 'Invalid credentials. Please try again.'
+            return render_template('login.html', error='Invalid credentials, You need to register if you don\'t have an account.')
     return render_template('login.html')
 
 @app.route('/')
@@ -190,6 +190,5 @@ def script():
 
 if __name__ == '__main__':
     with app.app_context():
-        db.drop_all()
         db.create_all()
     app.run(host="0.0.0.0", debug=True)
