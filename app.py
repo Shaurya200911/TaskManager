@@ -8,12 +8,12 @@ app.config['SECRET_KEY'] = 'your-secret-key'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///database.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# ✏️ FILL THIS SECTION WITH YOUR MAIL CREDENTIALS
+# ✏️ Fill these with your actual email settings
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your_email@gmail.com'       # <-- your Gmail
-app.config['MAIL_PASSWORD'] = 'your_app_password_here'     # <-- your Gmail App Password
+app.config['MAIL_USERNAME'] = 'skc112009@gmail.com'
+app.config['MAIL_PASSWORD'] = 'qefl ranj fhsy mudo'
 
 db = SQLAlchemy(app)
 mail = Mail(app)
@@ -48,6 +48,7 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    error = None
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -56,8 +57,9 @@ def login():
             session['user_id'] = user.id
             return redirect(url_for('tasks'))
         else:
-            return render_template('login.html', error='Invalid credentials, You need to register if you don\'t have an account.')
-    return render_template('login.html')
+            error = 'Invalid credentials. Please try again OR register.'
+            return render_template('login.html', error=error)
+    return render_template('login.html', error=error)
 
 @app.route('/')
 def tasks():
@@ -121,17 +123,28 @@ def toggle_task_completion(task_id):
         return jsonify({'message': 'Toggled'})
     return jsonify({'error': 'Task not found'}), 404
 
+@app.route('/api/tasks/<int:task_id>/move', methods=['PATCH'])
+def move_task(task_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.get_json()
+    new_due_date = data.get('dueDate')
+    task = Task.query.filter_by(id=task_id, user_id=session['user_id']).first()
+    if task:
+        task.duedate = datetime.strptime(new_due_date, '%Y-%m-%d').date()
+        db.session.commit()
+        return jsonify({'message': 'Task moved'})
+    return jsonify({'error': 'Task not found'}), 404
+
 @app.route('/api/search')
 def search_tasks():
     if 'user_id' not in session:
         return jsonify({'error': 'Unauthorized'}), 401
-
     keyword = request.args.get('q', '').lower()
     tasks = Task.query.filter(
         Task.user_id == session['user_id'],
         (Task.title.ilike(f'%{keyword}%')) | (Task.label.ilike(f'%{keyword}%'))
     ).all()
-
     return jsonify([
         {
             'id': task.id,
