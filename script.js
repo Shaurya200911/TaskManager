@@ -3,30 +3,60 @@ document.addEventListener('DOMContentLoaded', () => {
   const nameInput = document.getElementById('task-name');
   const dateInput = document.getElementById('due-date');
   const prioritySelect = document.getElementById('priority');
-  const recurringCheckbox = document.getElementById('recurring-task');
   const labelInput = document.getElementById('label');
-  const tasksList = document.getElementById('tasks');
+  const recurringCheckbox = document.getElementById('recurring-task');
   const searchBtn = document.getElementById('search-btn');
   const resetBtn = document.getElementById('reset-btn');
   const searchInput = document.getElementById('search-input');
+  const switchViewBtn = document.getElementById('switch-view-btn');
 
   let currentMonth = new Date().getMonth();
   let currentYear = new Date().getFullYear();
+  let currentView = 0; // 0 = list, 1 = calendar, 2 = grid, 3 = google calendar layout
 
   async function loadTasks() {
     const res = await fetch('/api/tasks');
     const tasks = await res.json();
-    render(tasks);
-    renderCalendar(tasks);
+
+    showCurrentView(tasks);
+  }
+
+  function showCurrentView(tasks) {
+    document.getElementById('task_section').style.display = 'none';
+    document.getElementById('calendar_section').style.display = 'none';
+    document.getElementById('grid_section').style.display = 'none';
+    document.getElementById('gcal_section').style.display = 'none';
+
+    if (currentView === 0) {
+      renderList(tasks);
+      document.getElementById('task_section').style.display = 'block';
+    } else if (currentView === 1) {
+      renderCalendar(tasks);
+      document.getElementById('calendar_section').style.display = 'block';
+    } else if (currentView === 2) {
+      renderGrid(tasks);
+      document.getElementById('grid_section').style.display = 'block';
+    } else if (currentView === 3) {
+      renderGoogleCalendar(tasks);
+      document.getElementById('gcal_section').style.display = 'block';
+    }
   }
 
   async function addTask(task) {
-    await fetch('/api/tasks', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(task)
-    });
-    loadTasks();
+    if (navigator.onLine) {
+      await fetch('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(task)
+      });
+      loadTasks();
+    } else {
+      let offlineTasks = JSON.parse(localStorage.getItem('offlineTasks')) || [];
+      offlineTasks.push(task);
+      localStorage.setItem('offlineTasks', JSON.stringify(offlineTasks));
+      alert('You are offline. Task saved locally and will sync automatically.');
+      loadTasks();
+    }
   }
 
   async function deleteTask(id) {
@@ -42,13 +72,14 @@ document.addEventListener('DOMContentLoaded', () => {
   async function moveTaskToDate(taskId, newDate) {
     await fetch(`/api/tasks/${taskId}/move`, {
       method: 'PATCH',
-      headers: {'Content-Type': 'application/json'},
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ dueDate: newDate })
     });
     loadTasks();
   }
 
-  function render(tasks) {
+  function renderList(tasks) {
+    const tasksList = document.getElementById('tasks');
     tasksList.innerHTML = '';
 
     if (tasks.length === 0) {
@@ -56,7 +87,6 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Sort by due date and priority
     tasks.sort((a, b) => {
       if (a.dueDate === b.dueDate) {
         const priorityOrder = { 'high': 1, 'medium': 2, 'low': 3 };
@@ -156,7 +186,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       cell.innerHTML = `<h6>${day}</h6>`;
 
-      // Allow dropping tasks onto this day cell
       cell.addEventListener('dragover', (e) => e.preventDefault());
       cell.addEventListener('drop', (e) => {
         e.preventDefault();
@@ -168,30 +197,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if (task.dueDate === dateStr) {
           const taskDiv = document.createElement('div');
           taskDiv.textContent = task.name;
-
-          if (task.priority === 'high') {
-            taskDiv.style.backgroundColor = '#f8d7da';
-            taskDiv.style.color = '#721c24';
-          } else if (task.priority === 'medium') {
-            taskDiv.style.backgroundColor = '#fff3cd';
-            taskDiv.style.color = '#856404';
-          } else {
-            taskDiv.style.backgroundColor = '#d1ecf1';
-            taskDiv.style.color = '#0c5460';
-          }
-
-          taskDiv.style.padding = '2px 5px';
-          taskDiv.style.marginTop = '5px';
-          taskDiv.style.borderRadius = '5px';
-          taskDiv.style.fontSize = '12px';
-
-          // Make task draggable
+          taskDiv.className = 'task-small';
           taskDiv.draggable = true;
           taskDiv.dataset.taskId = task.id;
           taskDiv.addEventListener('dragstart', (e) => {
             e.dataTransfer.setData('text/plain', task.id);
           });
-
           cell.appendChild(taskDiv);
         }
       });
@@ -200,13 +211,54 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  function showCalendar() {
-    fetch('/api/tasks')
-      .then(res => res.json())
-      .then(tasks => {
-        renderCalendar(tasks);
-      });
+  function renderGrid(tasks) {
+    const grid = document.getElementById('grid-tasks');
+    grid.innerHTML = '';
+
+    tasks.forEach(task => {
+      const card = document.createElement('div');
+      card.className = 'col';
+
+      card.innerHTML = `
+        <div class="card h-100">
+          <div class="card-body">
+            <h5 class="card-title">${task.name}</h5>
+            <p class="card-text">
+              Due: ${task.dueDate}<br>
+              Priority: ${task.priority}<br>
+              Label: ${task.label}
+            </p>
+          </div>
+        </div>
+      `;
+
+      grid.appendChild(card);
+    });
   }
+
+  function renderGoogleCalendar(tasks) {
+    const gcal = document.querySelector('.gcal-grid');
+    gcal.querySelectorAll('.gcal-day').forEach(day => day.remove()); // Clear old
+
+    for (let i = 0; i < 35; i++) {
+      const dayBox = document.createElement('div');
+      dayBox.className = 'gcal-day';
+      gcal.appendChild(dayBox);
+    }
+
+    tasks.forEach(task => {
+      const randomSlot = gcal.querySelectorAll('.gcal-day')[Math.floor(Math.random() * 35)];
+      const taskDiv = document.createElement('div');
+      taskDiv.className = 'task-small';
+      taskDiv.textContent = task.name;
+      randomSlot.appendChild(taskDiv);
+    });
+  }
+
+  switchViewBtn.addEventListener('click', () => {
+    currentView = (currentView + 1) % 4;
+    loadTasks();
+  });
 
   document.getElementById('prev-month').addEventListener('click', () => {
     currentMonth--;
@@ -248,8 +300,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!q) return loadTasks();
     const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
     const tasks = await res.json();
-    render(tasks);
-    renderCalendar(tasks);
+    showCurrentView(tasks);
   };
 
   resetBtn.onclick = () => {
@@ -257,7 +308,21 @@ document.addEventListener('DOMContentLoaded', () => {
     loadTasks();
   };
 
-  loadTasks();
+  window.addEventListener('online', async () => {
+    let offlineTasks = JSON.parse(localStorage.getItem('offlineTasks')) || [];
+    if (offlineTasks.length > 0) {
+      for (let task of offlineTasks) {
+        await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(task)
+        });
+      }
+      localStorage.removeItem('offlineTasks');
+      alert('✅ All offline tasks have been synced!');
+      loadTasks();
+    }
+  });
 
-  document.querySelector('a[href="#calendar_section"]').addEventListener('click', showCalendar);
+  loadTasks();
 });
