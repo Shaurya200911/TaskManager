@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, redirect, url_for, render_template, session, send_from_directory
+from flask import Flask, request, jsonify, redirect, flash, url_for, render_template, session, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from flask_mail import Mail, Message
 from datetime import datetime
@@ -34,17 +34,30 @@ class Task(db.Model):
     recurring = db.Column(db.Boolean, default=False)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
 
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
-        name = request.form.get('username')
-        email = request.form.get('email')
-        password = request.form.get('password')
-        user = User(name=name, email=email, password=password)
-        db.session.add(user)
+        name = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+
+        # Check if email already exists
+        existing_user = User.query.filter_by(email=email).first()
+        if existing_user:
+            flash('Email already registered. Please login.', 'warning')
+            return redirect('/register')
+
+        # Create new user
+        new_user = User(name=name, email=email, password=password)
+        db.session.add(new_user)
         db.session.commit()
-        return redirect(url_for('login'))
+
+        flash('Registration successful! Please login.', 'success')
+        return redirect('/login')
+
     return render_template('register.html')
+
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
