@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let currentMonth = new Date().getMonth();
   let currentYear = new Date().getFullYear();
   let currentView = 0; // 0 = list, 1 = calendar, 2 = grid, 3 = gcal
+  let currentChartType = 'line';
 
   let taskChartInstance = null; // for Chart.js
 
@@ -263,56 +264,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   async function loadChart() {
-    const res = await fetch('/api/task-stats');
-    const data = await res.json();
+  const res = await fetch('/api/task-stats');
+  const data = await res.json();
 
-    const labels = Object.keys(data);
-    const completed = labels.map(date => data[date].completed);
-    const pending = labels.map(date => data[date].pending);
+  const labels = Object.keys(data);
+  const completed = labels.map(date => data[date].completed);
+  const pending = labels.map(date => data[date].pending);
 
-    const ctx = document.getElementById('taskChart').getContext('2d');
+  const ctx = document.getElementById('taskChart').getContext('2d');
 
-    if (taskChartInstance) {
-      taskChartInstance.destroy();
-    }
-
-    taskChartInstance = new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Completed Tasks',
-            data: completed,
-            borderColor: 'green',
-            backgroundColor: 'rgba(0, 128, 0, 0.3)',
-            fill: true,
-            tension: 0.4
-          },
-          {
-            label: 'Pending Tasks',
-            data: pending,
-            borderColor: 'red',
-            backgroundColor: 'rgba(255, 0, 0, 0.3)',
-            fill: true,
-            tension: 0.4
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: {
-          legend: {
-            position: 'top'
-          },
-          title: {
-            display: true,
-            text: 'Task Completion Over Time'
-          }
-        }
-      }
-    });
+  if (taskChartInstance) {
+    taskChartInstance.destroy();
   }
+
+  taskChartInstance = new Chart(ctx, {
+    type: currentChartType,  // <-- Use dynamic type
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Completed Tasks',
+          data: completed,
+          borderColor: 'green',
+          backgroundColor: 'rgba(0, 128, 0, 0.3)',
+          fill: true,
+          tension: 0.4
+        },
+        {
+          label: 'Pending Tasks',
+          data: pending,
+          borderColor: 'red',
+          backgroundColor: 'rgba(255, 0, 0, 0.3)',
+          fill: true,
+          tension: 0.4
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { position: 'top' },
+        title: { display: true, text: 'Task Completion Over Time' }
+      }
+    }
+  });
+}
 
   switchViewBtn.addEventListener('click', () => {
     currentView = (currentView + 1) % 4;
@@ -366,6 +362,12 @@ document.addEventListener('DOMContentLoaded', () => {
     searchInput.value = '';
     loadTasks();
   };
+
+    document.getElementById('switch-chart-btn').addEventListener('click', () => {
+  currentChartType = currentChartType === 'line' ? 'bar' : 'line';  // Toggle
+  loadChart();  // Reload the chart with new type
+});
+
 
   window.addEventListener('online', async () => {
     let offlineTasks = JSON.parse(localStorage.getItem('offlineTasks')) || [];
