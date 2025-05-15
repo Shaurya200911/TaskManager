@@ -206,6 +206,20 @@ def logout():
     session.pop('user_id', None)
     return redirect(url_for('login'))
 
+@app.route('/api/task-stats')
+def task_stats():
+    tasks = Task.query.all()
+    stats = {}
+    for task in tasks:
+        date = str(task.duedate)  # Use due date or created date based on your model
+        if date not in stats:
+            stats[date] = {'completed': 0, 'pending': 0}
+        if task.completed:
+            stats[date]['completed'] += 1
+        else:
+            stats[date]['pending'] += 1
+    return jsonify(stats)
+
 @app.route('/styles.css')
 def styles():
     return send_from_directory('.', 'styles.css')

@@ -12,13 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentMonth = new Date().getMonth();
   let currentYear = new Date().getFullYear();
-  let currentView = 0; // 0 = list, 1 = calendar, 2 = grid, 3 = google calendar layout
+  let currentView = 0; // 0 = list, 1 = calendar, 2 = grid, 3 = gcal
+
+  let taskChartInstance = null; // for Chart.js
 
   async function loadTasks() {
     const res = await fetch('/api/tasks');
     const tasks = await res.json();
 
     showCurrentView(tasks);
+    loadChart();
   }
 
   function showCurrentView(tasks) {
@@ -50,23 +53,27 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(task)
       });
       loadTasks();
+      loadChart();
     } else {
       let offlineTasks = JSON.parse(localStorage.getItem('offlineTasks')) || [];
       offlineTasks.push(task);
       localStorage.setItem('offlineTasks', JSON.stringify(offlineTasks));
       alert('You are offline. Task saved locally and will sync automatically.');
       loadTasks();
+      loadChart();
     }
   }
 
   async function deleteTask(id) {
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' });
     loadTasks();
+    loadChart();
   }
 
   async function toggleTask(id) {
     await fetch(`/api/tasks/${id}/toggle`, { method: 'PATCH' });
     loadTasks();
+    loadChart();
   }
 
   async function moveTaskToDate(taskId, newDate) {
@@ -76,6 +83,7 @@ document.addEventListener('DOMContentLoaded', () => {
       body: JSON.stringify({ dueDate: newDate })
     });
     loadTasks();
+    loadChart();
   }
 
   function renderList(tasks) {
@@ -160,7 +168,6 @@ document.addEventListener('DOMContentLoaded', () => {
       tasksList.appendChild(li);
     });
   }
-
   function renderCalendar(tasks) {
     const calendar = document.getElementById('calendar');
     calendar.innerHTML = '';
@@ -238,7 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function renderGoogleCalendar(tasks) {
     const gcal = document.querySelector('.gcal-grid');
-    gcal.querySelectorAll('.gcal-day').forEach(day => day.remove()); // Clear old
+    gcal.querySelectorAll('.gcal-day').forEach(day => day.remove());
 
     for (let i = 0; i < 35; i++) {
       const dayBox = document.createElement('div');
@@ -252,6 +259,58 @@ document.addEventListener('DOMContentLoaded', () => {
       taskDiv.className = 'task-small';
       taskDiv.textContent = task.name;
       randomSlot.appendChild(taskDiv);
+    });
+  }
+
+  async function loadChart() {
+    const res = await fetch('/api/task-stats');
+    const data = await res.json();
+
+    const labels = Object.keys(data);
+    const completed = labels.map(date => data[date].completed);
+    const pending = labels.map(date => data[date].pending);
+
+    const ctx = document.getElementById('taskChart').getContext('2d');
+
+    if (taskChartInstance) {
+      taskChartInstance.destroy();
+    }
+
+    taskChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Completed Tasks',
+            data: completed,
+            borderColor: 'green',
+            backgroundColor: 'rgba(0, 128, 0, 0.3)',
+            fill: true,
+            tension: 0.4
+          },
+          {
+            label: 'Pending Tasks',
+            data: pending,
+            borderColor: 'red',
+            backgroundColor: 'rgba(255, 0, 0, 0.3)',
+            fill: true,
+            tension: 0.4
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'top'
+          },
+          title: {
+            display: true,
+            text: 'Task Completion Over Time'
+          }
+        }
+      }
     });
   }
 
@@ -321,6 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
       localStorage.removeItem('offlineTasks');
       alert('✅ All offline tasks have been synced!');
       loadTasks();
+      loadChart();
     }
   });
 
