@@ -117,3 +117,13 @@ h2, h5 {
     --bs-columns: 1;
   }
 }
+#task_section, #calendar_section, #grid_section, #gcal_section {
+  opacity: 0;
+  transition: opacity 0.5s ease-in-out;
+  display: none;
+}
+
+.view-visible {
+  opacity: 1;
+  display: block;
+}

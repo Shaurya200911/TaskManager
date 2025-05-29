@@ -25,26 +25,35 @@ document.addEventListener('DOMContentLoaded', () => {
     loadChart();
   }
 
-  function showCurrentView(tasks) {
-    document.getElementById('task_section').style.display = 'none';
-    document.getElementById('calendar_section').style.display = 'none';
-    document.getElementById('grid_section').style.display = 'none';
-    document.getElementById('gcal_section').style.display = 'none';
+function showCurrentView(tasks) {
+  // Instantly hide all views
+  document.querySelectorAll('#task_section, #calendar_section, #grid_section, #gcal_section')
+    .forEach(view => {
+      view.style.opacity = 0;
+      view.style.display = 'none';
+    });
 
-    if (currentView === 0) {
-      renderList(tasks);
-      document.getElementById('task_section').style.display = 'block';
-    } else if (currentView === 1) {
-      renderCalendar(tasks);
-      document.getElementById('calendar_section').style.display = 'block';
-    } else if (currentView === 2) {
-      renderGrid(tasks);
-      document.getElementById('grid_section').style.display = 'block';
-    } else if (currentView === 3) {
-      renderGoogleCalendar(tasks);
-      document.getElementById('gcal_section').style.display = 'block';
-    }
+  let targetId = '';
+  if (currentView === 0) {
+    renderList(tasks);
+    targetId = 'task_section';
+  } else if (currentView === 1) {
+    renderCalendar(tasks);
+    targetId = 'calendar_section';
+  } else if (currentView === 2) {
+    renderGrid(tasks);
+    targetId = 'grid_section';
+  } else if (currentView === 3) {
+    renderGoogleCalendar(tasks);
+    targetId = 'gcal_section';
   }
+
+  const target = document.getElementById(targetId);
+  target.style.display = 'block'; // ✅ Make it block first
+  setTimeout(() => {
+    target.style.opacity = 1;      // ✅ Then trigger fade in
+  }, 50); // 50ms delay to allow display to settle
+}
 
   async function addTask(task) {
     if (navigator.onLine) {
